@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { optionalEmailSchema, optionalPhoneSchema } from "../../utils/validation";
 
 export const createCustomerSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  email: z.string().email().optional(),
-  phone: z.string().trim().min(6).max(20).optional(),
+  email: optionalEmailSchema,
+  phone: optionalPhoneSchema,
   address: z.string().trim().max(180).optional(),
 });
 

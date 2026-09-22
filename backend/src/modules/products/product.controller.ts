@@ -1,14 +1,11 @@
 import type { Request, Response } from "express";
+import { listQuerySchema } from "../../utils/pagination";
 
-import {
-  createProductSchema,
-  productParamsSchema,
-  updateProductSchema,
-} from "./product.schema";
+import { createProductSchema, productParamsSchema, updateProductSchema } from "./product.schema";
 import * as productService from "./product.service";
 
-export async function findAll(_req: Request, res: Response) {
-  const products = await productService.findAll();
+export async function findAll(req: Request, res: Response) {
+  const products = await productService.findAll(listQuerySchema.parse(req.query));
 
   res.status(200).json(products);
 }

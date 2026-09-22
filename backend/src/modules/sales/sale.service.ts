@@ -1,6 +1,8 @@
 import { Prisma, StockMovementType } from "@prisma/client";
 
 import { prisma } from "../../config/prisma";
+import { paginate, paging, type ListQuery } from "../../utils/pagination";
+import { serializable } from "../../utils/transaction";
 import { AppError } from "../../utils/AppError";
 import type { CreateSaleInput } from "./sale.schema";
 
@@ -31,11 +33,27 @@ const saleInclude = {
   },
 };
 
-export async function findAll() {
-  return prisma.sale.findMany({
-    include: saleInclude,
-    orderBy: { createdAt: "desc" },
-  });
+export async function findAll(query: ListQuery) {
+  const where: Prisma.SaleWhereInput = {
+    ...(query.q
+      ? {
+          OR: [
+            { notes: { contains: query.q, mode: "insensitive" } },
+            { customer: { name: { contains: query.q, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  };
+  return paginate(
+    query,
+    prisma.sale.findMany({
+      where,
+      ...paging(query),
+      include: saleInclude,
+      orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    }),
+    prisma.sale.count({ where }),
+  );
 }
 
 export async function findById(id: string) {
@@ -52,93 +70,91 @@ export async function findById(id: string) {
 }
 
 export async function create(data: CreateSaleInput, createdById: string) {
-  return prisma.$transaction(
-    async (tx) => {
-      if (data.customerId) {
-        const customer = await tx.customer.findFirst({
-          where: {
-            id: data.customerId,
-            isActive: true,
-          },
-        });
-
-        if (!customer) {
-          throw new AppError("Customer not found", 404);
-        }
-      }
-
-      const productIds = data.items.map((item) => item.productId);
-      const products = await tx.product.findMany({
+  return serializable(async (tx) => {
+    if (data.customerId) {
+      const customer = await tx.customer.findFirst({
         where: {
-          id: { in: productIds },
+          id: data.customerId,
           isActive: true,
         },
       });
 
-      if (products.length !== productIds.length) {
-        throw new AppError("One or more products were not found", 404);
+      if (!customer) {
+        throw new AppError("Customer not found", 404);
       }
+    }
 
-      for (const item of data.items) {
-        const product = products.find((entry) => entry.id === item.productId)!;
+    const productIds = data.items.map((item) => item.productId);
+    const products = await tx.product.findMany({
+      where: {
+        id: { in: productIds },
+        isActive: true,
+      },
+    });
 
-        if (product.stock < item.quantity) {
-          throw new AppError(`Insufficient stock for ${product.name}`, 409);
-        }
+    if (products.length !== productIds.length) {
+      throw new AppError("One or more products were not found", 404);
+    }
+
+    const productsById = new Map(products.map((product) => [product.id, product]));
+    for (const item of data.items) {
+      const product = productsById.get(item.productId)!;
+
+      if (product.stock < item.quantity) {
+        throw new AppError(`Insufficient stock for ${product.name}`, 409);
       }
+    }
 
-      const totalAmount = data.items.reduce(
-        (total, item) => total + item.quantity * item.unitPrice,
-        0,
-      );
+    const totalAmount = data.items.reduce(
+      (total, item) => total.plus(new Prisma.Decimal(item.unitPrice).times(item.quantity)),
+      new Prisma.Decimal(0),
+    );
+    if (totalAmount.greaterThan("99999999.99"))
+      throw new AppError("Transaction total exceeds the supported range", 400);
 
-      const sale = await tx.sale.create({
+    const sale = await tx.sale.create({
+      data: {
+        customerId: data.customerId,
+        createdById,
+        notes: data.notes,
+        totalAmount,
+        items: {
+          create: data.items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            subtotal: new Prisma.Decimal(item.unitPrice).times(item.quantity),
+          })),
+        },
+      },
+    });
+
+    for (const item of data.items) {
+      const product = productsById.get(item.productId)!;
+      const previousStock = product.stock;
+      const newStock = previousStock - item.quantity;
+
+      await tx.product.update({
+        where: { id: item.productId },
+        data: { stock: newStock },
+      });
+
+      await tx.stockMovement.create({
         data: {
-          customerId: data.customerId,
+          productId: item.productId,
           createdById,
-          notes: data.notes,
-          totalAmount,
-          items: {
-            create: data.items.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              subtotal: item.quantity * item.unitPrice,
-            })),
-          },
+          type: StockMovementType.SALE,
+          quantity: item.quantity,
+          previousStock,
+          newStock,
+          reason: `Sale ${sale.id}`,
         },
       });
+    }
 
-      for (const item of data.items) {
-        const product = products.find((entry) => entry.id === item.productId)!;
-        const previousStock = product.stock;
-        const newStock = previousStock - item.quantity;
-
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: newStock },
-        });
-
-        await tx.stockMovement.create({
-          data: {
-            productId: item.productId,
-            createdById,
-            type: StockMovementType.SALE,
-            quantity: item.quantity,
-            previousStock,
-            newStock,
-            reason: `Sale ${sale.id}`,
-          },
-        });
-      }
-
-      return tx.sale.findUniqueOrThrow({
-        where: { id: sale.id },
-        include: saleInclude,
-      });
-    },
-    {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    },
-  );
+    return tx.sale.findUniqueOrThrow({
+      where: { id: sale.id },
+      include: saleInclude,
+    });
+  });
 }

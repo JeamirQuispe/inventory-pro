@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { listQuerySchema } from "../../utils/pagination";
 
 import {
   categoryParamsSchema,
@@ -7,8 +8,8 @@ import {
 } from "./category.schema";
 import * as categoryService from "./category.service";
 
-export async function findAll(_req: Request, res: Response) {
-  const categories = await categoryService.findAll();
+export async function findAll(req: Request, res: Response) {
+  const categories = await categoryService.findAll(listQuerySchema.parse(req.query));
 
   res.status(200).json(categories);
 }

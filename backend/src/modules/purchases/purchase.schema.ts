@@ -1,16 +1,17 @@
 import { z } from "zod";
+import { moneySchema, quantitySchema } from "../../utils/validation";
 
 const purchaseItemSchema = z.object({
   productId: z.string().uuid(),
-  quantity: z.coerce.number().int().positive(),
-  unitCost: z.coerce.number().positive(),
+  quantity: quantitySchema,
+  unitCost: moneySchema,
 });
 
 export const createPurchaseSchema = z
   .object({
     supplierId: z.string().uuid(),
     notes: z.string().trim().max(255).optional(),
-    items: z.array(purchaseItemSchema).min(1),
+    items: z.array(purchaseItemSchema).min(1).max(100),
   })
   .superRefine((data, ctx) => {
     const productIds = new Set<string>();

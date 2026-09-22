@@ -1,0 +1,19 @@
+{
+  "name": "inventory-pro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Inventory and sales management with an Express API and a React client.",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "typecheck": "npm --prefix backend run typecheck && npm --prefix frontend run typecheck",
+    "test:backend": "npm --prefix backend test",
+    "test:e2e": "npm --prefix frontend test",
+    "format": "node frontend/node_modules/prettier/bin/prettier.cjs --write .",
+    "format:check": "node frontend/node_modules/prettier/bin/prettier.cjs --check ."
+  }
+}

@@ -1,13 +1,11 @@
 import type { Request, Response } from "express";
+import { listQuerySchema } from "../../utils/pagination";
 
-import {
-  createPurchaseSchema,
-  purchaseParamsSchema,
-} from "./purchase.schema";
+import { createPurchaseSchema, purchaseParamsSchema } from "./purchase.schema";
 import * as purchaseService from "./purchase.service";
 
-export async function findAll(_req: Request, res: Response) {
-  const purchases = await purchaseService.findAll();
+export async function findAll(req: Request, res: Response) {
+  const purchases = await purchaseService.findAll(listQuerySchema.parse(req.query));
 
   res.status(200).json(purchases);
 }

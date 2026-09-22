@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { listQuerySchema } from "../../utils/pagination";
 
 import {
   createCustomerSchema,
@@ -7,8 +8,8 @@ import {
 } from "./customer.schema";
 import * as customerService from "./customer.service";
 
-export async function findAll(_req: Request, res: Response) {
-  const customers = await customerService.findAll();
+export async function findAll(req: Request, res: Response) {
+  const customers = await customerService.findAll(listQuerySchema.parse(req.query));
 
   res.status(200).json(customers);
 }

@@ -4,16 +4,12 @@ import { hashPassword } from "../src/utils/password";
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.NODE_ENV === "production") throw new Error("Demo seed is disabled in production");
   const password = await hashPassword("Admin123*");
 
   const admin = await prisma.user.upsert({
     where: { email: "admin@inventorypro.com" },
-    update: {
-      name: "InventoryPro Admin",
-      password,
-      role: Role.ADMIN,
-      isActive: true,
-    },
+    update: {},
     create: {
       name: "InventoryPro Admin",
       email: "admin@inventorypro.com",
@@ -99,6 +95,16 @@ async function main() {
         stock: 24,
         minStock: 6,
         categoryId: categories[0].id,
+        stockMovements: {
+          create: {
+            createdById: admin.id,
+            type: "ADJUSTMENT",
+            quantity: 24,
+            previousStock: 0,
+            newStock: 24,
+            reason: "Initial demo stock",
+          },
+        },
       },
     }),
     prisma.product.upsert({
@@ -112,6 +118,16 @@ async function main() {
         stock: 30,
         minStock: 10,
         categoryId: categories[1].id,
+        stockMovements: {
+          create: {
+            createdById: admin.id,
+            type: "ADJUSTMENT",
+            quantity: 30,
+            previousStock: 0,
+            newStock: 30,
+            reason: "Initial demo stock",
+          },
+        },
       },
     }),
     prisma.product.upsert({
@@ -125,6 +141,16 @@ async function main() {
         stock: 12,
         minStock: 5,
         categoryId: categories[2].id,
+        stockMovements: {
+          create: {
+            createdById: admin.id,
+            type: "ADJUSTMENT",
+            quantity: 12,
+            previousStock: 0,
+            newStock: 12,
+            reason: "Initial demo stock",
+          },
+        },
       },
     }),
   ]);

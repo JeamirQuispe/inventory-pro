@@ -4,11 +4,7 @@ import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { verifyToken } from "../utils/jwt";
 
-export async function authMiddleware(
-  req: Request,
-  _res: Response,
-  next: NextFunction,
-) {
+export async function authMiddleware(req: Request, _res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith("Bearer ")) {
@@ -30,10 +26,11 @@ export async function authMiddleware(
       id: true,
       role: true,
       isActive: true,
+      tokenVersion: true,
     },
   });
 
-  if (!user || !user.isActive) {
+  if (!user || !user.isActive || user.tokenVersion !== payload.tokenVersion) {
     throw new AppError("Invalid authentication token", 401);
   }
 

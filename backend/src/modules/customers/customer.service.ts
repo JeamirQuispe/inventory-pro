@@ -1,15 +1,24 @@
 import { prisma } from "../../config/prisma";
+import { serializable } from "../../utils/transaction";
+import { paginate, paging, type ListQuery } from "../../utils/pagination";
+import type { Prisma } from "@prisma/client";
 import { AppError } from "../../utils/AppError";
-import type {
-  CreateCustomerInput,
-  UpdateCustomerInput,
-} from "./customer.schema";
+import type { CreateCustomerInput, UpdateCustomerInput } from "./customer.schema";
 
-export async function findAll() {
-  return prisma.customer.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-  });
+export async function findAll(query: ListQuery) {
+  const where: Prisma.CustomerWhereInput = {
+    isActive: true,
+    name: { contains: query.q, mode: "insensitive" },
+  };
+  return paginate(
+    query,
+    prisma.customer.findMany({
+      where,
+      ...paging(query),
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    }),
+    prisma.customer.count({ where }),
+  );
 }
 
 export async function findById(id: string) {
@@ -34,27 +43,30 @@ export async function create(data: CreateCustomerInput) {
 }
 
 export async function update(id: string, data: UpdateCustomerInput) {
-  await findById(id);
-
   return prisma.customer.update({
-    where: { id },
+    where: { id, isActive: true },
     data,
   });
 }
 
 export async function remove(id: string) {
-  await findById(id);
+  return serializable(async (tx) => {
+    const active = await tx.customer.findFirst({
+      where: { id, isActive: true },
+      select: { id: true },
+    });
+    if (!active) throw new AppError("Customer not found", 404);
+    const salesCount = await tx.sale.count({
+      where: { customerId: id },
+    });
 
-  const salesCount = await prisma.sale.count({
-    where: { customerId: id },
-  });
+    if (salesCount > 0) {
+      throw new AppError("Customer has sales registered", 409);
+    }
 
-  if (salesCount > 0) {
-    throw new AppError("Customer has sales registered", 409);
-  }
-
-  return prisma.customer.update({
-    where: { id },
-    data: { isActive: false },
+    return tx.customer.update({
+      where: { id },
+      data: { isActive: false },
+    });
   });
 }

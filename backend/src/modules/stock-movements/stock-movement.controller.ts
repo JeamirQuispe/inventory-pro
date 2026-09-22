@@ -1,9 +1,6 @@
 import type { Request, Response } from "express";
 
-import {
-  createStockAdjustmentSchema,
-  stockMovementQuerySchema,
-} from "./stock-movement.schema";
+import { createStockAdjustmentSchema, stockMovementQuerySchema } from "./stock-movement.schema";
 import * as stockMovementService from "./stock-movement.service";
 
 export async function findAll(req: Request, res: Response) {

@@ -1,15 +1,24 @@
 import { prisma } from "../../config/prisma";
+import { serializable } from "../../utils/transaction";
+import { paginate, paging, type ListQuery } from "../../utils/pagination";
+import type { Prisma } from "@prisma/client";
 import { AppError } from "../../utils/AppError";
-import type {
-  CreateCategoryInput,
-  UpdateCategoryInput,
-} from "./category.schema";
+import type { CreateCategoryInput, UpdateCategoryInput } from "./category.schema";
 
-export async function findAll() {
-  return prisma.category.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-  });
+export async function findAll(query: ListQuery) {
+  const where: Prisma.CategoryWhereInput = {
+    isActive: true,
+    name: { contains: query.q, mode: "insensitive" },
+  };
+  return paginate(
+    query,
+    prisma.category.findMany({
+      where,
+      ...paging(query),
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    }),
+    prisma.category.count({ where }),
+  );
 }
 
 export async function findById(id: string) {
@@ -61,21 +70,23 @@ export async function update(id: string, data: UpdateCategoryInput) {
 }
 
 export async function remove(id: string) {
-  await findById(id);
+  return serializable(async (tx) => {
+    const category = await tx.category.findFirst({ where: { id, isActive: true } });
+    if (!category) throw new AppError("Category not found", 404);
+    const productsCount = await tx.product.count({
+      where: {
+        categoryId: id,
+        isActive: true,
+      },
+    });
 
-  const productsCount = await prisma.product.count({
-    where: {
-      categoryId: id,
-      isActive: true,
-    },
-  });
+    if (productsCount > 0) {
+      throw new AppError("Category has active products", 409);
+    }
 
-  if (productsCount > 0) {
-    throw new AppError("Category has active products", 409);
-  }
-
-  return prisma.category.update({
-    where: { id },
-    data: { isActive: false },
+    return tx.category.update({
+      where: { id },
+      data: { isActive: false },
+    });
   });
 }

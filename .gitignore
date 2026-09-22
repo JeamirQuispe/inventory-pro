@@ -1,3 +1,11 @@
 backend/.env
 backend/dist
 backend/node_modules
+frontend/node_modules
+frontend/dist
+frontend/.env
+frontend/.env.local
+frontend/test-results
+frontend/playwright-report
+*.log
+node_modules/

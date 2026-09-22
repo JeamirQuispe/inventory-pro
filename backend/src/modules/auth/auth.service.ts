@@ -22,6 +22,7 @@ export async function login(data: LoginInput) {
   const token = signToken({
     userId: user.id,
     role: user.role,
+    tokenVersion: user.tokenVersion,
   });
 
   return {

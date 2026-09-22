@@ -1,10 +1,11 @@
 import type { Request, Response } from "express";
+import { listQuerySchema } from "../../utils/pagination";
 
 import { createSaleSchema, saleParamsSchema } from "./sale.schema";
 import * as saleService from "./sale.service";
 
-export async function findAll(_req: Request, res: Response) {
-  const sales = await saleService.findAll();
+export async function findAll(req: Request, res: Response) {
+  const sales = await saleService.findAll(listQuerySchema.parse(req.query));
 
   res.status(200).json(sales);
 }

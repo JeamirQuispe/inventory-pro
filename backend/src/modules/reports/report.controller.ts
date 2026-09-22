@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { listQuerySchema } from "../../utils/pagination";
 
 import { reportQuerySchema } from "./report.schema";
 import * as reportService from "./report.service";
@@ -10,8 +11,8 @@ export async function dashboard(req: Request, res: Response) {
   res.status(200).json(report);
 }
 
-export async function lowStock(_req: Request, res: Response) {
-  const products = await reportService.getLowStockProducts();
+export async function lowStock(req: Request, res: Response) {
+  const products = await reportService.getLowStockProducts(listQuerySchema.parse(req.query));
 
   res.status(200).json(products);
 }

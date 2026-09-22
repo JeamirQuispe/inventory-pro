@@ -20,14 +20,15 @@ enum StockMovementType {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(SELLER)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  password     String
+  tokenVersion Int      @default(0)
+  role         Role     @default(SELLER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   purchases      Purchase[]
   sales          Sale[]
@@ -37,12 +38,12 @@ model User {
 }
 
 model Category {
-  id          String   @id @default(uuid())
-  name        String   @unique
+  id          String    @id @default(uuid())
+  name        String    @unique
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   products    Product[]
 
   @@map("categories")
@@ -67,6 +68,8 @@ model Product {
   saleItems      SaleItem[]
   stockMovements StockMovement[]
 
+  @@index([isActive, name])
+  @@index([categoryId])
   @@map("products")
 }
 
@@ -115,14 +118,17 @@ model Purchase {
 
   items PurchaseItem[]
 
+  @@index([createdAt])
+  @@index([supplierId])
+  @@index([createdById])
   @@map("purchases")
 }
 
 model PurchaseItem {
-  id        String  @id @default(uuid())
-  quantity  Int
-  unitCost  Decimal @db.Decimal(10, 2)
-  subtotal  Decimal @db.Decimal(10, 2)
+  id       String  @id @default(uuid())
+  quantity Int
+  unitCost Decimal @db.Decimal(10, 2)
+  subtotal Decimal @db.Decimal(10, 2)
 
   purchaseId String
   purchase   Purchase @relation(fields: [purchaseId], references: [id])
@@ -130,6 +136,8 @@ model PurchaseItem {
   productId String
   product   Product @relation(fields: [productId], references: [id])
 
+  @@index([purchaseId])
+  @@index([productId])
   @@map("purchase_items")
 }
 
@@ -148,6 +156,9 @@ model Sale {
 
   items SaleItem[]
 
+  @@index([createdAt])
+  @@index([customerId])
+  @@index([createdById])
   @@map("sales")
 }
 
@@ -163,6 +174,8 @@ model SaleItem {
   productId String
   product   Product @relation(fields: [productId], references: [id])
 
+  @@index([saleId])
+  @@index([productId])
   @@map("sale_items")
 }
 
@@ -181,5 +194,8 @@ model StockMovement {
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
+  @@index([productId, createdAt])
+  @@index([createdAt])
+  @@index([createdById])
   @@map("stock_movements")
 }

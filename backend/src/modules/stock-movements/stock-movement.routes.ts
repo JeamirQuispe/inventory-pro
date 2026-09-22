@@ -10,7 +10,4 @@ export const stockMovementRoutes = Router();
 stockMovementRoutes.use(asyncHandler(authMiddleware), canViewInventory);
 
 stockMovementRoutes.get("/", asyncHandler(stockMovementController.findAll));
-stockMovementRoutes.post(
-  "/adjustments",
-  asyncHandler(stockMovementController.createAdjustment),
-);
+stockMovementRoutes.post("/adjustments", asyncHandler(stockMovementController.createAdjustment));

@@ -1,18 +1,20 @@
 import { Role } from "@prisma/client";
 import { z } from "zod";
+import { emailSchema, passwordSchema } from "../../utils/validation";
 
 export const createUserSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  email: z.string().email(),
-  password: z.string().min(8).max(72),
+  email: emailSchema,
+  password: passwordSchema,
   role: z.nativeEnum(Role).default(Role.SELLER),
 });
 
 export const updateUserSchema = createUserSchema
-  .omit({ password: true })
+  .omit({ password: true, role: true })
   .partial()
   .extend({
-    password: z.string().min(8).max(72).optional(),
+    role: z.nativeEnum(Role).optional(),
+    password: passwordSchema.optional(),
     isActive: z.boolean().optional(),
   });
 

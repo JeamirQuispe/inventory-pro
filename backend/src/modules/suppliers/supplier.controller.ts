@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { listQuerySchema } from "../../utils/pagination";
 
 import {
   createSupplierSchema,
@@ -7,8 +8,8 @@ import {
 } from "./supplier.schema";
 import * as supplierService from "./supplier.service";
 
-export async function findAll(_req: Request, res: Response) {
-  const suppliers = await supplierService.findAll();
+export async function findAll(req: Request, res: Response) {
+  const suppliers = await supplierService.findAll(listQuerySchema.parse(req.query));
 
   res.status(200).json(suppliers);
 }
